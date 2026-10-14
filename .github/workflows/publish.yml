@@ -1,0 +1,102 @@
+name: Publish TRAINORACLE domain (account OFF)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Optional full source main SHA; empty resolves latest main'
+        required: false
+        default: ''
+        type: string
+  repository_dispatch:
+    types: [publish-domain]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trainoracle-domain-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'hojune0330/TRAINORACLE-DOMAIN' &&
+      github.event.repository.private == false &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, observed in source CI
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7, observed in source CI
+        with:
+          node-version: '24.19.0'
+      - name: Test publisher
+        run: node --test scripts/prepare-domain.test.mjs
+      - name: Resolve exact public source main SHA and download immutable archive
+        env:
+          REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || github.event.client_payload.source_sha || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p _work/source
+          node scripts/prepare-domain.mjs resolve-source _work/source-info.json
+          ARCHIVE_URL="$(node -p "JSON.parse(require('fs').readFileSync('_work/source-info.json')).archiveUrl")"
+          curl --fail --silent --show-error --location --retry 3 "$ARCHIVE_URL" -o _work/source.tar.gz
+          sha256sum _work/source.tar.gz > _work/source-archive.sha256
+          tar -xzf _work/source.tar.gz --strip-components=1 -C _work/source
+          # Never execute/copy source workflows. Only the pinned source app is built.
+          rm -rf _work/source/app/dist
+      - name: Install, typecheck, test, validate OFF environment and build unchanged source
+        run: node scripts/prepare-domain.mjs build _work/source
+      - name: Transform only generated static documents and generate receipt
+        run: node scripts/prepare-domain.mjs prepare _work/source/app/dist _work/source-info.json
+      - name: Verify hashes, receipt, OFF mode and fresh main before uploading
+        run: |
+          set -euo pipefail
+          sha256sum --check _work/source-archive.sha256
+          node scripts/prepare-domain.mjs verify _work/source/app/dist _work/source-info.json
+          node scripts/prepare-domain.mjs assert-main _work/source-info.json
+      - name: Upload Pages artifact (dist only)
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3, resolved 2026-10-14
+        with:
+          path: _work/source/app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Download the exact run's Pages artifact for final hash verification
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4, resolved 2026-10-14
+        with:
+          name: github-pages
+          path: _verified/package
+      - name: Verify artifact and source main immediately before deployment
+        run: |
+          set -euo pipefail
+          mkdir -p _verified/dist
+          # upload-pages-artifact packages the supplied dist in artifact.tar.
+          tar -xf _verified/package/artifact.tar -C _verified/dist
+          cp _verified/dist/trainoracle-domain-receipt.json _verified/source-info.json
+          node scripts/prepare-domain.mjs verify _verified/dist _verified/source-info.json
+          node scripts/prepare-domain.mjs assert-main _verified/source-info.json
+      - name: Deploy verified Pages artifact to this repository only
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4, resolved 2026-10-14
+        with:
+          artifact_name: github-pages
