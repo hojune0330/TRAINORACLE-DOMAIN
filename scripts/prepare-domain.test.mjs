@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { accountOffEnvironment, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
+import { accountOffEnvironment, sourceTestEnvironment, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const files = ['legal/privacy.html', 'legal/terms.html', 'legal/device-integrations.html', 'support.html'];
@@ -44,6 +44,22 @@ test('OFF environment strips credentials and inherited VITE values; dev dependen
   assert.equal(env.VITE_KILL_SHARING, 'true');
   assert.equal(env.VITE_FEATURE_ACCOUNT_JOURNAL, 'false');
   assert.throws(() => assertAccountOff({ ...env, VITE_GOOGLE_AUTH_ENABLED: 'true' }));
+});
+
+test('source tests isolate feature fixtures while stripping credentials; production OFF remains unchanged', async () => {
+  const production = accountOffEnvironment({ PATH: '/safe/bin', GITHUB_TOKEN: 'fixture-only', VITE_ACCOUNT_PUBLIC_ENABLED: 'true' });
+  const before = JSON.stringify(production);
+  const env = sourceTestEnvironment({ ...production, GITHUB_TOKEN: 'fixture-only', VITE_UNREVIEWED_KEY: 'fixture-only' });
+  assert.equal(env.PATH, '/safe/bin');
+  assert.equal(env.CI, 'true');
+  assert.equal(env.GITHUB_TOKEN, undefined);
+  assert.ok(Object.keys(env).every(key => !key.startsWith('VITE_')));
+  assert.equal(JSON.stringify(production), before);
+  assertAccountOff(production);
+  const script = await readFile(join(project, 'scripts/prepare-domain.mjs'), 'utf8');
+  assert.match(script, /args\[0\] === 'test' \? sourceTestEnvironment\(process\.env\) : env/);
+  assert.match(script, /args\[0\] !== 'test'\) assertAccountOff\(commandEnv\)/);
+  assert.match(script, /env: commandEnv, stdio: 'inherit'/);
 });
 
 test('privacy/terms remain byte-identical except contact', () => {

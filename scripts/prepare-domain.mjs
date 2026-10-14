@@ -33,6 +33,15 @@ export function accountOffEnvironment(base = {}) {
   return env;
 }
 
+export function sourceTestEnvironment(base = {}) {
+  // Source contract tests intentionally switch features with their own fixtures.
+  // Production kill switches must not poison those fixtures; runner credentials
+  // and arbitrary repository VITE values must still never reach the test process.
+  const env = accountOffEnvironment(base);
+  for (const key of Object.keys(env)) if (key.startsWith('VITE_')) delete env[key];
+  return env;
+}
+
 export function assertAccountOff(env) {
   for (const [key, value] of Object.entries(accountOffEnvironment())) {
     if (key.startsWith('VITE_') && env[key] !== value) throw new Error('Account-OFF contract mismatch: ' + key);
@@ -142,7 +151,9 @@ async function buildSource(source) {
       if (validator.status !== 0) throw new Error('Hosted validator rejected OFF environment');
     }
     // Linux Actions runner only. Never echo environment values.
-    const run = spawnSync('npm', args, { cwd, env, stdio: 'inherit' });
+    const commandEnv = args[0] === 'test' ? sourceTestEnvironment(process.env) : env;
+    if (args[0] !== 'test') assertAccountOff(commandEnv);
+    const run = spawnSync('npm', args, { cwd, env: commandEnv, stdio: 'inherit' });
     if (run.status !== 0) throw new Error('Failed npm step: ' + args.join(' '));
   }
 }
