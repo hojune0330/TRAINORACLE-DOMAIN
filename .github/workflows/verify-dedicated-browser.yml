@@ -1,0 +1,80 @@
+name: Dedicated browser preflight (not deployment)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Read-only source verification commit, full SHA'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trainoracle-dedicated-browser-preflight-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  dedicated-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate source revision
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: '[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]'
+      - name: Checkout verification tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: publisher
+          persist-credentials: false
+      - name: Checkout exact source revision without publishing
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: hojune0330/TRAINORACLE
+          ref: ${{ inputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: source/app/package-lock.json
+      - name: Install locked dependencies and Chromium, typecheck, and run all dedicated browser scripts
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { resolve } from 'node:path';
+          import { sourceTestEnvironment } from './publisher/scripts/prepare-domain.mjs';
+          const env = sourceTestEnvironment(process.env);
+          const cwd = resolve('source/app');
+          const scripts = [
+            'test:e2e:calendar-decoration',
+            'test:e2e:account-draft-buffer',
+            'test:e2e:account-draft-panel',
+            'test:e2e:account-record-service',
+            'test:e2e:account-conflict',
+            'test:e2e:account-decoration',
+            'test:e2e:account-calendar-decoration',
+            'test:e2e:account-plan-service',
+            'test:e2e:form-input-autosave',
+            'test:e2e:file-analysis',
+          ];
+          const commands = [
+            ['npm', ['ci', '--no-audit', '--no-fund']],
+            [process.execPath, [resolve(cwd, 'node_modules/playwright/cli.js'), 'install', '--with-deps', 'chromium']],
+            [process.execPath, [resolve(cwd, 'node_modules/typescript/bin/tsc'), '--noEmit']],
+            ...scripts.map(script => ['npm', ['run', script]]),
+          ];
+          for (const [command, args] of commands) {
+            const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' });
+            if (result.error) throw result.error;
+            if (result.status !== 0) process.exit(result.status ?? 1);
+          }
+          NODE
+      # Keep all ten source app-browser-dedicated scripts in their original order.
+      # This preflight does not replace full source CI for the exact same SHA.
+      # Existing publisher release gates remain mandatory and unchanged.
+      # No Pages/id-token/write permissions, backend deployment, source pushes or artifacts.

@@ -57,10 +57,22 @@ test('lounge and minigame remote progress stay OFF; unreviewed VITE settings fai
   assert.throws(() => assertAccountOff({ ...env, VITE_UNREVIEWED_NETWORK_ENABLED: 'true' }), /Unreviewed VITE setting/);
 });
 
+test('friend arena is explicitly OFF, discards inherited URLs and requires the exact empty string', () => {
+  const base = { VITE_FRIEND_ARENA_URL: 'wss://arena.example.invalid' };
+  const env = accountOffEnvironment(base);
+  assert.equal(base.VITE_FRIEND_ARENA_URL, 'wss://arena.example.invalid');
+  assert.ok(Object.hasOwn(env, 'VITE_FRIEND_ARENA_URL'));
+  assert.equal(env.VITE_FRIEND_ARENA_URL, '');
+  assertAccountOff(env);
+  for (const value of [base.VITE_FRIEND_ARENA_URL, ' ', undefined, null, false]) {
+    assert.throws(() => assertAccountOff({ ...env, VITE_FRIEND_ARENA_URL: value }), /Account-OFF contract mismatch: VITE_FRIEND_ARENA_URL/);
+  }
+});
+
 test('source tests isolate feature fixtures while stripping credentials; production OFF remains unchanged', async () => {
   const production = accountOffEnvironment({ PATH: '/safe/bin', GITHUB_TOKEN: 'fixture-only', VITE_ACCOUNT_PUBLIC_ENABLED: 'true' });
   const before = JSON.stringify(production);
-  const env = sourceTestEnvironment({ ...production, GITHUB_TOKEN: 'fixture-only', VITE_UNREVIEWED_KEY: 'fixture-only' });
+  const env = sourceTestEnvironment({ ...production, GITHUB_TOKEN: 'fixture-only', VITE_UNREVIEWED_KEY: 'fixture-only', VITE_FRIEND_ARENA_URL: 'wss://arena.example.invalid' });
   assert.equal(env.PATH, '/safe/bin');
   assert.equal(env.CI, 'true');
   assert.equal(env.GITHUB_TOKEN, undefined);
