@@ -12,7 +12,7 @@ export const OLD_ORIGIN = 'https://hojune0330.github.io/TRAINORACLE/';
 export const OLD_EMAIL = 'hojune0330@gmail.com';
 export const NEW_EMAIL = 'hojune.jang@trainoracle.io';
 const SHA = /^[a-f0-9]{40}$/;
-const FEATURE_OFF = ['ACCOUNT_JOURNAL', 'SYNC', 'SHARING', 'PLAN_PROPOSALS', 'PLAN_BACKUP', 'PUBLIC_PROFILE', 'PRODUCT_ANALYTICS', 'FEEDBACK_BOARD', 'FILE_ANALYSIS_TCX', 'FILE_ANALYSIS_CSV', 'FILE_ANALYSIS_JSON', 'FILE_ANALYSIS_GPX'];
+const FEATURE_OFF = ['ACCOUNT_JOURNAL', 'SYNC', 'SHARING', 'PLAN_PROPOSALS', 'PLAN_BACKUP', 'PUBLIC_PROFILE', 'PRODUCT_ANALYTICS', 'FEEDBACK_BOARD', 'FILE_ANALYSIS_TCX', 'FILE_ANALYSIS_CSV', 'FILE_ANALYSIS_JSON', 'FILE_ANALYSIS_GPX', 'MINIGAME_PROGRESS'];
 
 export function accountOffEnvironment(base = {}) {
   // No arbitrary runner/repository VITE_* settings or credentials are inherited.
@@ -21,7 +21,7 @@ export function accountOffEnvironment(base = {}) {
     if (base[name]) env[name] = base[name];
   }
   // Reviewed source has no separate storage-backend toggle: account gates + empty connection keep it inaccessible.
-  Object.assign(env, { CI: 'true', TZ: 'UTC', VITE_SERVER_OPERATIONS_ENABLED: 'false', VITE_ACCOUNT_PUBLIC_ENABLED: 'false', VITE_KILL_ACCOUNT: 'true', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED: 'false', VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION: '', VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED: 'false', VITE_PHONE_AUTH_OPERATIONS_APPROVED: 'false', VITE_PRIVACY_POLICY_URL: ORIGIN + 'legal/privacy.html', VITE_PRIVACY_POLICY_VERSION: '2026-10-05', VITE_TERMS_OF_SERVICE_URL: ORIGIN + 'legal/terms.html', VITE_TERMS_OF_SERVICE_VERSION: '2026-10-05' });
+  Object.assign(env, { CI: 'true', TZ: 'UTC', VITE_SERVER_OPERATIONS_ENABLED: 'false', VITE_LOUNGE_PUBLIC_ENABLED: 'false', VITE_LOUNGE_REALTIME_URL: '', VITE_LOUNGE_PAGE_URL: '', VITE_ACCOUNT_PUBLIC_ENABLED: 'false', VITE_KILL_ACCOUNT: 'true', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED: 'false', VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION: '', VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED: 'false', VITE_PHONE_AUTH_OPERATIONS_APPROVED: 'false', VITE_PRIVACY_POLICY_URL: ORIGIN + 'legal/privacy.html', VITE_PRIVACY_POLICY_VERSION: '2026-10-05', VITE_TERMS_OF_SERVICE_URL: ORIGIN + 'legal/terms.html', VITE_TERMS_OF_SERVICE_VERSION: '2026-10-05' });
   for (const provider of ['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE']) {
     env['VITE_' + provider + '_AUTH_ENABLED'] = 'false';
     env['VITE_KILL_' + provider + '_AUTH'] = 'true';
@@ -43,8 +43,12 @@ export function sourceTestEnvironment(base = {}) {
 }
 
 export function assertAccountOff(env) {
-  for (const [key, value] of Object.entries(accountOffEnvironment())) {
+  const expected = accountOffEnvironment();
+  for (const [key, value] of Object.entries(expected)) {
     if (key.startsWith('VITE_') && env[key] !== value) throw new Error('Account-OFF contract mismatch: ' + key);
+  }
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('VITE_') && !Object.hasOwn(expected, key)) throw new Error('Unreviewed VITE setting: ' + key);
   }
 }
 

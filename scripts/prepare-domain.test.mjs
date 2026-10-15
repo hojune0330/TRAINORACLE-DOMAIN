@@ -46,6 +46,17 @@ test('OFF environment strips credentials and inherited VITE values; dev dependen
   assert.throws(() => assertAccountOff({ ...env, VITE_GOOGLE_AUTH_ENABLED: 'true' }));
 });
 
+test('lounge and minigame remote progress stay OFF; unreviewed VITE settings fail closed', () => {
+  const env = accountOffEnvironment({ VITE_LOUNGE_PUBLIC_ENABLED: 'true', VITE_LOUNGE_REALTIME_URL: 'https://fixture.invalid', VITE_LOUNGE_PAGE_URL: 'https://fixture.invalid' });
+  assert.equal(env.VITE_LOUNGE_PUBLIC_ENABLED, 'false');
+  assert.equal(env.VITE_LOUNGE_REALTIME_URL, '');
+  assert.equal(env.VITE_LOUNGE_PAGE_URL, '');
+  assert.equal(env.VITE_KILL_MINIGAME_PROGRESS, 'true');
+  assertAccountOff(env);
+  assert.throws(() => assertAccountOff({ ...env, VITE_LOUNGE_PUBLIC_ENABLED: 'true' }));
+  assert.throws(() => assertAccountOff({ ...env, VITE_UNREVIEWED_NETWORK_ENABLED: 'true' }), /Unreviewed VITE setting/);
+});
+
 test('source tests isolate feature fixtures while stripping credentials; production OFF remains unchanged', async () => {
   const production = accountOffEnvironment({ PATH: '/safe/bin', GITHUB_TOKEN: 'fixture-only', VITE_ACCOUNT_PUBLIC_ENABLED: 'true' });
   const before = JSON.stringify(production);
