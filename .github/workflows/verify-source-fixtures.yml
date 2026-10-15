@@ -76,7 +76,13 @@ jobs:
               'src/screens/home/HomeJournalReadiness.contract.test.tsx',
               'src/screens/plan-beta/ActivePlan.adaptation.contract.test.tsx',
               'src/screens/plan-beta/ActivePlan.plan-link.contract.test.tsx',
-              'src/screens/plan-beta/catalog-execution-targets.contract.test.tsx'],
+              'src/screens/plan-beta/catalog-execution-targets.contract.test.tsx',
+              'src/screens/LogEntry.contract.test.tsx',
+              'src/domain/private-memo-preparation.test.tsx',
+              'src/screens/log-entry/EmptySave.contract.test.tsx',
+              'src/screens/log-entry/FormInputAutosave.test.tsx',
+              'src/screens/log-entry/PurposeScopedMemoField.account.test.tsx',
+              'src/screens/plan-beta/PlanSchedulePreview.contract.test.tsx'],
           ];
           for (const args of commands) {
             const result = spawnSync(process.execPath, args, { cwd, env, stdio: 'inherit' });
