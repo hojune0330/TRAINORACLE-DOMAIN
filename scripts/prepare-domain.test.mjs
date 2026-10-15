@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { accountOffEnvironment, sourceTestEnvironment, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
+import { accountOffEnvironment, sourceTestEnvironment, sourceBuildCommands, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const files = ['legal/privacy.html', 'legal/terms.html', 'legal/device-integrations.html', 'support.html'];
@@ -83,6 +83,24 @@ test('source tests isolate feature fixtures while stripping credentials; product
   assert.match(script, /args\[0\] === 'test' \? sourceTestEnvironment\(process\.env\) : env/);
   assert.match(script, /args\[0\] !== 'test'\) assertAccountOff\(commandEnv\)/);
   assert.match(script, /env: commandEnv, stdio: 'inherit'/);
+});
+
+test('explicit domain-hosting scope preserves mandatory build gates without claiming source regression success', async () => {
+  assert.deepEqual(sourceBuildCommands(), [['ci'], ['run', 'typecheck'], ['test'], ['run', 'build']]);
+  assert.deepEqual(sourceBuildCommands('domain-hosting'), [['ci'], ['run', 'typecheck'], ['run', 'build']]);
+  for (const value of ['skip-all', 'off', '', false, null]) assert.throws(() => sourceBuildCommands(value), /Unknown build verification scope/);
+  const workflow = await readFile(join(project, '.github/workflows/publish.yml'), 'utf8');
+  assert.match(workflow, /default: source-verified/);
+  assert.match(workflow, /DOMAIN_BUILD_SCOPE: \$\{\{ inputs\.deployment_scope \|\| 'source-verified' \}\}/);
+  assert.doesNotMatch(workflow, /continue-on-error|\|\| true/);
+  await withDist(async dist => {
+    const receipt = await prepareDomain(dist, REVIEWED_SHA, 'domain-hosting');
+    assert.equal(receipt.verificationScope, 'domain-hosting');
+    assert.equal(receipt.sourceRegressionGate, 'separate-not-claimed-as-passed');
+    assertAccountOff(receipt.buildEnvironment);
+    await verifyDist(dist, REVIEWED_SHA, 'domain-hosting');
+    await assert.rejects(verifyDist(dist, REVIEWED_SHA, 'source-verified'), /verification scope mismatch/);
+  });
 });
 
 test('privacy/terms remain byte-identical except contact', () => {

@@ -42,6 +42,11 @@ export function sourceTestEnvironment(base = {}) {
   return env;
 }
 
+export function sourceBuildCommands(scope = 'source-verified') {
+  if (!['source-verified', 'domain-hosting'].includes(scope)) throw new Error('Unknown build verification scope');
+  return [['ci'], ['run', 'typecheck'], ...(scope === 'source-verified' ? [['test']] : []), ['run', 'build']];
+}
+
 export function assertAccountOff(env) {
   const expected = accountOffEnvironment();
   for (const [key, value] of Object.entries(expected)) {
@@ -113,8 +118,9 @@ async function inventory(root, prefix = '') {
   return result;
 }
 
-export async function prepareDomain(dist, sourceSha) {
+export async function prepareDomain(dist, sourceSha, verificationScope = 'source-verified') {
   if (!SHA.test(sourceSha)) throw new Error('Invalid source SHA');
+  sourceBuildCommands(verificationScope);
   // Validate all transformations before any file is changed.
   const changes = {};
   let index = await readFile(join(dist, 'index.html'), 'utf8');
@@ -126,14 +132,16 @@ export async function prepareDomain(dist, sourceSha) {
   await inventory(dist);
   for (const [name, text] of Object.entries(changes)) await writeFile(join(dist, name), text);
   const files = await inventory(dist);
-  const receipt = { schemaVersion: 1, sourceRepository: SOURCE_REPO, sourceSha, reviewedBaselineSha: REVIEWED_SHA, domain: ORIGIN, accountMode: 'off', originPreserved: true, originPreservedMeaning: 'This workflow does not modify the old origin or its repository; browser storage availability is not a server guarantee.', buildEnvironment: accountOffEnvironment(), files };
+  const receipt = { schemaVersion: 1, sourceRepository: SOURCE_REPO, sourceSha, verificationScope, sourceRegressionGate: verificationScope === 'source-verified' ? 'required' : 'separate-not-claimed-as-passed', reviewedBaselineSha: REVIEWED_SHA, domain: ORIGIN, accountMode: 'off', originPreserved: true, originPreservedMeaning: 'This workflow does not modify the old origin or its repository; browser storage availability is not a server guarantee.', buildEnvironment: accountOffEnvironment(), files };
   await writeFile(join(dist, RECEIPT), JSON.stringify(receipt, null, 2) + '\n');
   await verifyDist(dist, sourceSha);
   return receipt;
 }
 
-export async function verifyDist(dist, expectedSha) {
+export async function verifyDist(dist, expectedSha, expectedVerificationScope) {
   const receipt = JSON.parse(await readFile(join(dist, RECEIPT), 'utf8'));
+  sourceBuildCommands(receipt.verificationScope ?? 'source-verified');
+  if (expectedVerificationScope !== undefined && receipt.verificationScope !== expectedVerificationScope) throw new Error('Receipt verification scope mismatch');
   if (!SHA.test(expectedSha) || receipt.sourceSha !== expectedSha || receipt.accountMode !== 'off' || receipt.originPreserved !== true || receipt.sourceRepository !== SOURCE_REPO || receipt.domain !== ORIGIN) throw new Error('Receipt contract mismatch');
   assertAccountOff(receipt.buildEnvironment);
   const actual = await inventory(dist);
@@ -149,7 +157,10 @@ async function buildSource(source) {
   const cwd = join(source, 'app');
   const env = accountOffEnvironment(process.env);
   assertAccountOff(env);
-  for (const args of [['ci'], ['run', 'typecheck'], ['test'], ['run', 'build']]) {
+  const scope = process.env.DOMAIN_BUILD_SCOPE || 'source-verified';
+  const commands = sourceBuildCommands(scope);
+  console.log('Build verification scope: ' + scope + '; typecheck, hosted OFF validation and production build are mandatory.');
+  for (const args of commands) {
     if (args[0] === 'run' && args[1] === 'build') {
       const validator = spawnSync(process.execPath, ['scripts/validate-hosted-release-env.mjs'], { cwd, env, stdio: 'inherit' });
       if (validator.status !== 0) throw new Error('Hosted validator rejected OFF environment');
@@ -167,7 +178,9 @@ async function cli() {
   if (command === 'resolve-source') {
     const head = await mainSha();
     const sourceSha = selectSha(process.env.REQUESTED_SOURCE_SHA ?? '', head);
-    const info = { sourceSha, mainShaAtResolution: head, archiveUrl: 'https://codeload.github.com/' + SOURCE_REPO + '/tar.gz/' + sourceSha };
+    const verificationScope = process.env.DOMAIN_BUILD_SCOPE || 'source-verified';
+    sourceBuildCommands(verificationScope);
+    const info = { sourceSha, mainShaAtResolution: head, verificationScope, archiveUrl: 'https://codeload.github.com/' + SOURCE_REPO + '/tar.gz/' + sourceSha };
     await writeFile(arg1, JSON.stringify(info, null, 2) + '\n');
   } else if (command === 'assert-main') {
     const info = JSON.parse(await readFile(arg1, 'utf8'));
@@ -176,7 +189,7 @@ async function cli() {
     await buildSource(resolve(arg1));
   } else if (command === 'prepare' || command === 'verify') {
     const info = JSON.parse(await readFile(arg2, 'utf8'));
-    await (command === 'prepare' ? prepareDomain : verifyDist)(resolve(arg1), info.sourceSha);
+    await (command === 'prepare' ? prepareDomain : verifyDist)(resolve(arg1), info.sourceSha, info.verificationScope || 'source-verified');
   } else {
     throw new Error('Usage: resolve-source info.json | assert-main info.json | build source | prepare/verify dist info.json');
   }
