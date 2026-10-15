@@ -83,6 +83,11 @@ jobs:
               'src/screens/log-entry/FormInputAutosave.test.tsx',
               'src/screens/log-entry/PurposeScopedMemoField.account.test.tsx',
               'src/screens/plan-beta/PlanSchedulePreview.contract.test.tsx'],
+            [resolve(cwd, 'node_modules/vitest/vitest.mjs'), 'run', '--config', process.env.TEST_CONFIG,
+              'src/screens/PlanBeta.contract.test.tsx',
+              'src/domain/lt-pilot-runtime-v3.contract.test.tsx',
+              'src/domain/rpe-adjusted-slot-v3.contract.test.ts',
+              '--maxWorkers=1', '--no-file-parallelism'],
           ];
           for (const args of commands) {
             const result = spawnSync(process.execPath, args, { cwd, env, stdio: 'inherit' });
@@ -90,5 +95,6 @@ jobs:
             if (result.status !== 0) process.exit(result.status ?? 1);
           }
           NODE
+      # Match the source runner: normal fixtures first, then all three heavy files serially.
       # This preflight never replaces the full source CI or publisher gates.
       # It has no Pages permissions, artifacts, backend deployment or source writes.
