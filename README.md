@@ -10,6 +10,23 @@
 
 검토 기준 원본 SHA: `0eb26e4319c7e4fffb118976211c228cfa25e510`.
 
+## 2026-10-17 웹·모바일 버전 통일
+
+- 이번 통합 대상 원본: `14df77217e12caa1d5c8290175d78e1274e14a4f`.
+- `TRAINORACLE/main`과 구주소, 이 도메인, `TRAINORACLE-MOBILE` 후보가 같은 원본을 사용한다.
+  각 저장소 자체의 커밋 번호는 역할이 다르므로 서로 같을 필요가 없다.
+- 원본 필수 CI 통과를 확인한 뒤 `publish.yml`에 정확한 `source_sha`를 전달한다.
+  같은 SHA의 원본 CI를 확인했다면 `domain-hosting` 범위는 타입·OFF 환경·빌드·파일 검증을
+  다시 수행하며 원본 회귀검사 증거는 해당 CI 실행으로 구분한다. 실패를 통과로 바꾸지 않는다.
+- 문서의 대상 SHA는 실제 배포 완료 증거가 아니다. Actions 결과와
+  `https://trainoracle.io/trainoracle-domain-receipt.json`의 `sourceSha`를 함께 확인한다.
+- 현재 GitHub Pages와 도메인·메일 DNS를 유지한다. Cloudflare 이전, 계정 공개,
+  앱스토어 제출은 이 버전 통일의 범위가 아니다. 구주소의 자료 접근도 보존한다.
+
+다음 갱신 때도 원본을 먼저 검수·고정하고 두 게시 저장소를 맞춘다. 모바일은
+`release-config.json`의 원본 SHA와 후보 빌드를 함께 갱신한다. 설정만 바꿔 앱이
+출시됐다고 표시하지 않는다.
+
 ## 배포 순서와 제한
 
 1. Node **24.19.0**. 검토한 원본 CI의 checkout/setup-node SHA를 재사용합니다.
