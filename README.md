@@ -27,6 +27,17 @@
 `release-config.json`의 원본 SHA와 후보 빌드를 함께 갱신한다. 설정만 바꿔 앱이
 출시됐다고 표시하지 않는다.
 
+### 배포 완료 확인 — 2026-10-17 01:48 KST
+
+- [원본 필수 CI 38927995230](https://github.com/hojune0330/TRAINORACLE/actions/runs/38927995230) 성공. UTC/KST, 브라우저 4종의 두 실행 경로와 전용 저장·게임 검사를 포함한다. 자동 게시는 `[manual-pages]` 정책에 따라 생략하고 아래 수동 게시로 분리했다.
+- [이 도메인 게시 38934316561](https://github.com/hojune0330/TRAINORACLE-DOMAIN/actions/runs/38934316561) 성공. 실제 공개 영수증의 원본은 위 통합 SHA와 일치하며 계정 OFF를 유지한다.
+- 기존 GitHub 주소는 보존형 Pages 커밋 `f030e036444df5614547a3a118767b13e4e53474`로 게시했고 Pages `built` 및 공개 원본 SHA 일치를 확인했다. 이전 자산·미리보기는 삭제하지 않았다.
+- [모바일 후보 38928117433](https://github.com/hojune0330/TRAINORACLE-MOBILE/actions/runs/38928117433)도 같은 원본의 웹 묶음·Android·iOS 검사를 통과했다. 앱스토어 출시는 아니다.
+- 두 공개 웹 주소의 새 격리 모바일 브라우저에서 합성 JSON의 실제 Worker 처리, 확인 전 미저장, 확인 후 정확한 기기 저장을 확인했다. POST 요청·페이지 실행 오류는 0건이었다. 기존 사용자 기록·실계정·설치된 PWA 캐시 전환 검증은 포함하지 않는다.
+
+위 내용은 해당 시점의 검증 기록이다. 다음 작업자는 원본의
+`node .tools/check-release-channels.mjs`와 새 배포 결과를 다시 확인한다. 기존 주소·새 도메인·테스트 앱의 사용자 저장소는 자동 통합되지 않는다.
+
 ## 배포 순서와 제한
 
 1. Node **24.19.0**. 검토한 원본 CI의 checkout/setup-node SHA를 재사용합니다.
