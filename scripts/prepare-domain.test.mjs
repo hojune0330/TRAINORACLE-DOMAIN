@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { accountOffEnvironment, sourceTestEnvironment, sourceBuildCommands, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
+import { accountOffEnvironment, domainBuildEnvironment, sourceTestEnvironment, sourceBuildCommands, assertAccountOff, selectSha, patchDocument, migrationPage, prepareDomain, verifyDist, REVIEWED_SHA, OLD_EMAIL, NEW_EMAIL, OLD_ORIGIN, ORIGIN } from './prepare-domain.mjs';
+import { canonicalAccountEvidence, parseCanonicalAccountInput, selectDomainAccountInput } from './canonical-account-config.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const files = ['legal/privacy.html', 'legal/terms.html', 'legal/device-integrations.html', 'support.html'];
@@ -81,8 +82,107 @@ test('source tests isolate feature fixtures while stripping credentials; product
   assertAccountOff(production);
   const script = await readFile(join(project, 'scripts/prepare-domain.mjs'), 'utf8');
   assert.match(script, /args\[0\] === 'test' \? sourceTestEnvironment\(process\.env\) : env/);
-  assert.match(script, /args\[0\] !== 'test'\) assertAccountOff\(commandEnv\)/);
+  assert.match(script, /args\[0\] !== 'test'\) assertBuildEnvironment\(commandEnv, accountInput\)/);
   assert.match(script, /env: commandEnv, stdio: 'inherit'/);
+});
+
+function canonicalInput() {
+  return { canonicalOrigin: 'https://trainoracle.io', gatewayOrigin: 'https://gateway.example.test', environment: {
+    VITE_SUPABASE_URL: 'https://existing.example.test', VITE_SUPABASE_ANON_KEY: `sb_publishable_${'x'.repeat(24)}`,
+    VITE_ACCOUNT_PUBLIC_ENABLED: 'true', VITE_KILL_ACCOUNT: 'false',
+    VITE_FEATURE_ACCOUNT_JOURNAL: 'true', VITE_KILL_ACCOUNT_JOURNAL: 'false',
+    VITE_FEATURE_GARMIN_INTEGRATION: 'true', VITE_KILL_GARMIN_INTEGRATION: 'false',
+    VITE_ACCOUNT_JOURNAL_GATEWAY_URL: 'https://gateway.example.test/api/account-journal',
+    VITE_GARMIN_INTEGRATION_URL: 'https://gateway.example.test/api/garmin-integration',
+    VITE_GARMIN_AUTHORIZATION_ORIGIN: 'https://connect.garmin.com',
+    VITE_PRIVACY_POLICY_URL: 'https://trainoracle.io/legal/privacy.html', VITE_PRIVACY_POLICY_VERSION: '2026-11-04',
+    VITE_TERMS_OF_SERVICE_URL: 'https://trainoracle.io/legal/terms.html', VITE_TERMS_OF_SERVICE_VERSION: '2026-11-04',
+    VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED: 'true', VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION: '0058_storage_withdrawal_erasure',
+    VITE_GOOGLE_AUTH_ENABLED: 'true', VITE_KILL_GOOGLE_AUTH: 'false',
+  } };
+}
+
+test('canonical account mode is explicit, repository-bound and strips unrelated runner settings', () => {
+  const input = canonicalInput();
+  const settings = { DOMAIN_ACCOUNT_MODE: 'canonical', DOMAIN_ACCOUNT_CONFIG_JSON: JSON.stringify(input),
+    GITHUB_REPOSITORY: 'hojune0330/TRAINORACLE-DOMAIN', GITHUB_REF: 'refs/heads/main' };
+  assert.deepEqual(selectDomainAccountInput(settings), input);
+  assert.equal(selectDomainAccountInput({ ...settings, DOMAIN_ACCOUNT_MODE: 'off' }), null);
+  assert.equal(selectDomainAccountInput({ DOMAIN_ACCOUNT_CONFIG_JSON: 'ignored' }), null);
+  for (const patch of [{ GITHUB_REPOSITORY: 'hojune0330/TRAINORACLE' }, { GITHUB_REF: 'refs/heads/gh-pages' },
+    { DOMAIN_ACCOUNT_MODE: 'on' }, { DOMAIN_ACCOUNT_CONFIG_JSON: 'not JSON' }]) {
+    assert.throws(() => selectDomainAccountInput({ ...settings, ...patch }), /CANONICAL_ACCOUNT_/);
+  }
+  const env = domainBuildEnvironment({ PATH: '/safe/bin', VITE_FEATURE_SHARING: 'true', VITE_UNREVIEWED_KEY: 'bad', GITHUB_TOKEN: 'bad' }, input);
+  assert.equal(env.PATH, '/safe/bin'); assert.equal(env.GITHUB_TOKEN, undefined); assert.equal(env.VITE_UNREVIEWED_KEY, undefined);
+  assert.equal(env.VITE_ACCOUNT_PUBLIC_ENABLED, 'true'); assert.equal(env.VITE_FEATURE_GARMIN_INTEGRATION, 'true');
+  for (const key of ['VITE_FEATURE_SHARING', 'VITE_FEATURE_SYNC', 'VITE_FEATURE_SELF_HOSTED_COACHING', 'VITE_EMAIL_AUTH_ENABLED']) assert.equal(env[key], 'false');
+  assert.equal(env.VITE_KILL_SHARING, 'true');
+  assert.throws(() => parseCanonicalAccountInput(' '.repeat(16_385)), /CONFIG_INVALID/);
+  const proof = canonicalAccountEvidence(env);
+  assert.match(proof.configurationSha256, /^[a-f0-9]{64}$/u);
+  assert.equal(JSON.stringify(proof).includes(env.VITE_SUPABASE_ANON_KEY), false);
+});
+
+test('canonical configuration rejects missing approval, unsafe keys, split gateways and unrelated feature activation', () => {
+  for (const change of [
+    value => { value.canonicalOrigin = 'https://hojune0330.github.io'; },
+    value => { value.gatewayOrigin = 'http://gateway.example.test'; },
+    value => { value.environment.VITE_GARMIN_INTEGRATION_URL = 'https://other.example.test/api/garmin-integration'; },
+    value => { value.environment.VITE_ACCOUNT_JOURNAL_GATEWAY_URL += '?redirect=x'; },
+    value => { value.environment.VITE_GARMIN_AUTHORIZATION_ORIGIN = 'https://evil.example.test'; },
+    value => { value.environment.VITE_PRIVACY_POLICY_URL = 'https://other.example.test/privacy'; },
+    value => { value.environment.VITE_PRIVACY_POLICY_VERSION = '2026-10-05'; },
+    value => { delete value.environment.VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED; },
+    value => { value.environment.VITE_SUPABASE_ANON_KEY = `sb_secret_${'x'.repeat(24)}`; },
+    value => { value.environment.VITE_SUPABASE_URL = 'https://user:password@example.test'; },
+    value => { value.environment.TRAINORACLE_JOURNAL_KEYRING_JSON = '{}'; },
+    value => { value.environment.VITE_FEATURE_SHARING = 'true'; },
+    value => { value.environment.VITE_GOOGLE_AUTH_ENABLED = 'false'; },
+    value => { value.environment.VITE_EMAIL_AUTH_ENABLED = 'true'; value.environment.VITE_KILL_EMAIL_AUTH = 'false'; },
+  ]) {
+    const input = canonicalInput(); change(input);
+    assert.throws(() => domainBuildEnvironment({}, input), /CANONICAL_ACCOUNT_/);
+  }
+});
+
+test('canonical artifact retains exact application bytes and allows only its validated public key', async () => withDist(async dist => {
+  const input = canonicalInput();
+  const bytes = `const PUBLIC_KEY=${JSON.stringify(input.environment.VITE_SUPABASE_ANON_KEY)};`;
+  await writeFile(join(dist, 'assets/main.js'), bytes);
+  const receipt = await prepareDomain(dist, REVIEWED_SHA, 'domain-hosting', input);
+  assert.equal(receipt.accountMode, 'canonical'); assert.equal(receipt.backendVerification, 'NOT_CONFIRMED');
+  assert.equal(await readFile(join(dist, 'assets/main.js'), 'utf8'), bytes);
+  assert.match(await readFile(join(dist, 'migration.html'), 'utf8'), /Garmin 연결/);
+  assert.match(await readFile(join(dist, 'migration.html'), 'utf8'), /완전한 복원을 약속하지 않습니다/);
+  await verifyDist(dist, REVIEWED_SHA, 'domain-hosting', input);
+  await assert.rejects(verifyDist(dist, REVIEWED_SHA, 'domain-hosting'), /Receipt contract/);
+  const changed = canonicalInput(); changed.environment.VITE_SUPABASE_ANON_KEY = `sb_publishable_${'y'.repeat(24)}`;
+  await assert.rejects(verifyDist(dist, REVIEWED_SHA, 'domain-hosting', changed), /environment mismatch/);
+  for (const forbidden of [`sb_secret_${'x'.repeat(24)}`, `sb_publishable_${'y'.repeat(24)}`]) {
+    await writeFile(join(dist, 'assets/bad.js'), forbidden);
+    await assert.rejects(verifyDist(dist, REVIEWED_SHA, 'domain-hosting', input), /Potential credential/);
+  }
+}));
+
+test('legacy anon JWT may be public only when it is the exact configured anon role token', async () => withDist(async dist => {
+  const token = role => `${Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')}.${Buffer.from(JSON.stringify({ role, ref: 'synthetic-project' })).toString('base64url')}.${'s'.repeat(43)}`;
+  const input = canonicalInput(); input.environment.VITE_SUPABASE_ANON_KEY = token('anon');
+  await writeFile(join(dist, 'assets/main.js'), input.environment.VITE_SUPABASE_ANON_KEY);
+  await prepareDomain(dist, REVIEWED_SHA, 'domain-hosting', input);
+  await writeFile(join(dist, 'assets/bad.js'), token('service_role'));
+  await assert.rejects(verifyDist(dist, REVIEWED_SHA, 'domain-hosting', input), /Potential credential/);
+  input.environment.VITE_SUPABASE_ANON_KEY = token('service_role');
+  assert.throws(() => domainBuildEnvironment({}, input), /PUBLIC_CONNECTION_INVALID/);
+}));
+
+test('workflow defaults account OFF and passes explicit mode unchanged through both artifact checks', async () => {
+  const workflow = await readFile(join(project, '.github/workflows/publish.yml'), 'utf8');
+  assert.match(workflow, /account_mode:[\s\S]*?default: off/);
+  assert.match(workflow, /DOMAIN_ACCOUNT_MODE: \$\{\{ inputs\.account_mode \|\| 'off' \}\}/);
+  assert.match(workflow, /DOMAIN_ACCOUNT_CONFIG_JSON: \$\{\{ vars\.TRAINORACLE_CANONICAL_ACCOUNT_CONFIG \}\}/);
+  assert.match(workflow, /github\.repository == 'hojune0330\/TRAINORACLE-DOMAIN'/);
+  assert.doesNotMatch(workflow, /client_payload\.account_mode|continue-on-error|\|\| true/);
 });
 
 test('explicit domain-hosting scope preserves mandatory build gates without claiming source regression success', async () => {
@@ -186,6 +286,7 @@ test('optional actual read-only source: hosted validator and exact legal-documen
   const source = resolve(process.env.TRAINORACLE_TEST_SOURCE);
   const validator = await import(pathToFileURL(join(source, 'app/scripts/validate-hosted-release-env.mjs')).href);
   assert.deepEqual(validator.validateHostedReleaseEnvironment(accountOffEnvironment()), []);
+  assert.deepEqual(validator.validateHostedReleaseEnvironment(domainBuildEnvironment({}, canonicalInput())), []);
   const originals = {};
   for (const file of files) originals[file] = await readFile(join(source, 'app/public', file), 'utf8');
   for (const file of ['legal/privacy.html', 'legal/terms.html']) assert.equal(patchDocument(file, originals[file]), originals[file].replaceAll(OLD_EMAIL, NEW_EMAIL));

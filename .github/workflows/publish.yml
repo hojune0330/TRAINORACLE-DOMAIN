@@ -1,4 +1,4 @@
-name: Publish TRAINORACLE domain (account OFF)
+name: Publish TRAINORACLE domain (explicit account mode)
 
 on:
   workflow_dispatch:
@@ -16,6 +16,14 @@ on:
         options:
           - source-verified
           - domain-hosting
+      account_mode:
+        description: 'off 유지 또는 운영 확인 후 canonical 공개. canonical은 TRAINORACLE_CANONICAL_ACCOUNT_CONFIG 공개 설정 변수가 필요함'
+        required: true
+        default: off
+        type: choice
+        options:
+          - off
+          - canonical
   repository_dispatch:
     types: [publish-domain]
 
@@ -24,6 +32,8 @@ permissions:
 
 env:
   DOMAIN_BUILD_SCOPE: ${{ inputs.deployment_scope || 'source-verified' }}
+  DOMAIN_ACCOUNT_MODE: ${{ inputs.account_mode || 'off' }}
+  DOMAIN_ACCOUNT_CONFIG_JSON: ${{ vars.TRAINORACLE_CANONICAL_ACCOUNT_CONFIG }}
 
 concurrency:
   group: trainoracle-domain-pages
@@ -69,7 +79,7 @@ jobs:
           node scripts/prepare-domain.mjs build _work/source
       - name: Transform only generated static documents and generate receipt
         run: node scripts/prepare-domain.mjs prepare _work/source/app/dist _work/source-info.json
-      - name: Verify hashes, receipt, OFF mode and fresh main before uploading
+      - name: Verify hashes, receipt, explicit account mode and fresh main before uploading
         run: |
           set -euo pipefail
           sha256sum --check _work/source-archive.sha256

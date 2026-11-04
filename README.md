@@ -1,5 +1,41 @@
 # TRAINORACLE-DOMAIN 전용 도메인 배포
 
+## 명시적 계정 공개 모드 — 2026-11-05 준비
+
+기본값은 계속 `account_mode=off`입니다. 아래의 별도 모드를 선택할 때만 이 문서의
+OFF 환경·빈 연결·OFF receipt 규칙 대신 검증된 공개 설정을 사용합니다. 원본
+`TRAINORACLE`의 `gh-pages` 빌더와 계정 차단은 변경하지 않습니다. 이 저장소는
+Actions Pages 방식이므로 원본 `gh-pages:CNAME`이나 새 CNAME 파일을 요구하지 않습니다.
+
+1. 운영 담당자가 `TRAINORACLE_CANONICAL_ACCOUNT_CONFIG` 저장소 **변수**에 공개 JSON을
+   등록합니다. 최상위는 `canonicalOrigin: "https://trainoracle.io"`, 회사 서버의 정확한
+   HTTPS `gatewayOrigin`, `environment`뿐입니다. `environment`의 허용 항목은
+   `scripts/canonical-account-config.mjs`에 한정됩니다. Supabase URL과 검증된
+   publishable/anon 키만 브라우저에 넣으며, service-role·암호화·서명 키는 거절합니다.
+2. 계정·일지·Garmin 기능 true와 대응 kill false, 정확한 회사 gateway 두 경로,
+   Garmin authorization origin, 11월 4일 법률 문서와 저장 공개 승인/0058 표기,
+   운영 확인된 인증수단 하나 이상을 모두 명시합니다. 이메일·전화의 기존 별도
+   운영 승인도 필요합니다. 공유·일반 동기화·AI 코칭은 이 모드가 열지 않습니다.
+3. `workflow_dispatch`에서 정확한 `source_sha`와 `account_mode=canonical`을 선택합니다.
+   `repository_dispatch`는 계정을 열 수 없습니다. 실행 저장소/브랜치가 정확히
+   `hojune0330/TRAINORACLE-DOMAIN`의 `main`이어야 합니다. 기존 타입 검사·선택한 원본
+   검사 범위·원본 hosted validator·빌드·동일 산출물 재검증·최신 main 검사는 유지합니다.
+4. receipt는 `accountMode: "canonical"`, 공개 설정 지문과 `backendVerification:
+   "NOT_CONFIRMED"`를 기록합니다. 배포 직전에도 같은 변수와 artifact의 설정을
+   대조하므로 실행 도중 설정이 바뀌면 중단합니다. 정확히 검증한 공개 키 문자열만
+   artifact scanner가 허용하며 다른 키·JWT·비밀 패턴은 계속 거절합니다.
+
+로컬에서 공개 JSON 파일만 읽어 설정을 확인할 수 있습니다. 네트워크·빌드·게시를
+수행하지 않으며 키 문자열을 출력하지 않습니다.
+
+```powershell
+node scripts/prepare-domain.mjs inspect-account <public-config.json>
+```
+
+이 설정 검사는 운영 DB의 저장 검토·Origin·기존 암호화 키 재사용·사용자 동의·실제
+OAuth나 기록 수신의 성공 증거가 아닙니다. 원본의 제공자 상태·정책 본문은 계속
+원본 책임자가 갱신하며, 게시기는 연락처와 공개 모드에 맞는 주소 보존 안내만 바꿉니다.
+
 대상은 별도 **PUBLIC** 저장소 `hojune0330/TRAINORACLE-DOMAIN`의 `main`뿐입니다. 원본 `hojune0330/TRAINORACLE`의 코드, `gh-pages`, `previews/`, 기존 배포환경은 수정하지 않습니다. 이 저장소는 전용 도메인 배포 설정입니다. 실제 공개 상태는 Pages 배포 결과와 사이트의 배포 영수증으로 확인합니다.
 
 ## 파일
