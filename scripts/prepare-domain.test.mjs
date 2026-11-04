@@ -13,7 +13,7 @@ const fixture = {
   'legal/privacy.html': '<p>기타 개인정보처리방침 본문 그대로</p>' + contact,
   'legal/terms.html': '<p>기타 이용약관 본문 그대로</p>' + contact,
   'legal/device-integrations.html': contact + '\n    <h2>받으려는 정보</h2>\n<p>기타 수집·삭제 내용 그대로</p>',
-  'support.html': '<p>최근 확인: 2026년 8월 29일</p><p><strong>공식 연동 신청은 완료됐고 제공자 검토를 기다리고 있습니다.</strong> 승인 여부와 시점은 Garmin·COROS가 결정합니다. 지금은 두 계정을 연결할 수 없습니다.</p><h2>제공자 검토 대기 중인 공식 자동 연동</h2><table><tr><td>Garmin</td><td>공식 개발자 프로그램 신청 완료 · 제공자 검토 대기</td></tr><tr><td>COROS</td><td>공식 API 신청 완료 · 제공자 검토 대기</td></tr></table>' + contact,
+  'support.html': '<p>최근 확인: 2026년 11월 4일</p><p><strong>Garmin 개발자 프로그램 승인은 확인했으며, 실제 앱 연결 설정은 준비 중입니다.</strong> 프로그램 승인과 사용자 운동기록 수신은 별도 단계입니다. 현재 공개 앱에서는 두 계정의 자동 연결을 제공하지 않습니다.</p><h2>공식 자동 연동 준비 상태</h2><table><tr><td>Garmin</td><td>개발자 프로그램 승인 확인 · 앱 자격증명·실제 수신 설정 필요</td></tr><tr><td>COROS</td><td>공식 API 신청 완료 · 제공자 검토 대기</td></tr></table>' + contact,
 };
 
 async function withDist(callback) {
@@ -107,16 +107,16 @@ test('privacy/terms remain byte-identical except contact', () => {
   for (const name of ['legal/privacy.html', 'legal/terms.html']) assert.equal(patchDocument(name, fixture[name]), fixture[name].replaceAll(OLD_EMAIL, NEW_EMAIL));
 });
 
-test('Garmin dated pause with unknown restart, COROS unchanged; upstream drift rejected', () => {
+test('reviewed provider status and device policy remain unchanged; origin anchor drift is rejected', () => {
   const support = patchDocument('support.html', fixture['support.html']);
-  assert.match(support, /2026년 10월 9일/);
-  assert.match(support, /신규 심사·승인 잠정 중단/);
-  assert.match(support, /재개일 미정/);
-  assert.match(support, /자동 연동 미공개/);
+  assert.match(support, /최근 확인: 2026년 11월 4일/);
+  assert.match(support, /Garmin 개발자 프로그램 승인은 확인했으며/);
+  assert.match(support, /앱 자격증명·실제 수신 설정 필요/);
+  assert.doesNotMatch(support, /잠정 중단|재개일 미정|2026년 10월 9일/);
   assert.ok(support.includes('<tr><td>COROS</td><td>공식 API 신청 완료 · 제공자 검토 대기</td></tr>'));
-  assert.throws(() => patchDocument('support.html', fixture['support.html'].replace('최근 확인:', '문서 변경:')));
+  assert.throws(() => patchDocument('support.html', fixture['support.html'].replace('공식 자동 연동 준비 상태', '새로운 제목')));
   const device = patchDocument('legal/device-integrations.html', fixture['legal/device-integrations.html']);
-  assert.match(device, /자동 연동은 아직 공개되지 않았습니다/);
+  assert.equal(device, fixture['legal/device-integrations.html'].replaceAll(OLD_EMAIL, NEW_EMAIL));
 });
 
 test('migration notice keeps old origin link and disclaims complete restoration, no scripts/redirect', () => {
@@ -190,6 +190,8 @@ test('optional actual read-only source: hosted validator and exact legal-documen
   for (const file of files) originals[file] = await readFile(join(source, 'app/public', file), 'utf8');
   for (const file of ['legal/privacy.html', 'legal/terms.html']) assert.equal(patchDocument(file, originals[file]), originals[file].replaceAll(OLD_EMAIL, NEW_EMAIL));
   const support = patchDocument('support.html', originals['support.html']);
+  assert.match(support, /Garmin 개발자 프로그램 승인은 확인했으며/);
+  assert.doesNotMatch(support, /신규 심사·승인이 잠정 중단|신규 심사·승인 잠정 중단/);
   const coros = originals['support.html'].match(/<tr><td>COROS<\/td>.*?<\/tr>/)[0];
   assert.ok(support.includes(coros));
   patchDocument('legal/device-integrations.html', originals['legal/device-integrations.html']);

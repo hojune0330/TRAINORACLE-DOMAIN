@@ -46,7 +46,7 @@
 4. 별도 작업 복사본에서 `npm ci`, `npm run typecheck`, `npm test`, 원본 `validate-hosted-release-env.mjs`, `npm run build`. 앱 소스·원본 npm scripts를 수정하지 않습니다.
 5. 계정·4종 인증·계정 일지·동기화·공유·계정 의존 기능·파일 분석·피드백 백엔드는 명시적으로 OFF/kill. Supabase 연결과 키는 빈 값, 보관 공개 승인은 false. runner의 임의 VITE 변수·자격증명을 상속하지 않으며 source `.env`도 거절합니다. 이 배포에 새 API 키나 secret은 필요 없습니다.
 6. 빌드 **후 dist만** 변경합니다. index canonical/og:url → `https://trainoracle.io/`. privacy/terms/device-integrations/support의 이메일 → `hojune.jang@trainoracle.io`. privacy/terms의 다른 바이트는 보존합니다.
-7. support/device-integrations에 **2026-10-09 안내 기준** Garmin 신규 심사·승인 잠정 중단, 재개일 미정, 자동 연동 미공개를 표시합니다. COROS의 신청 완료·제공자 검토 대기는 그대로 유지합니다. 외부 문서 재조사는 하지 않았으며 상태 근거는 이번 지시입니다. 승인·재개 공지 시 별도 검토가 필요합니다.
+7. support/device-integrations의 제공자 상태·확인일·처리 정책은 검수한 원본 그대로 보존합니다. 2026-11-04부터 오래된 10월 9일 Garmin 심사 중단 문구로 다시 덮어쓰지 않습니다. 원본은 프로그램 승인, 실제 앱 권한·수신 준비, COROS 대기를 구분합니다. 게시기는 연락처와 구주소 보존 안내만 변경합니다.
 8. `/migration.html`은 같은 원본의 전체 앱 제공, 계정 기능 미공개, 구주소 자료 접근 유지, origin별 저장공간 분리, 완전 복원 비보장을 안내합니다. 자동 redirect 없음. **구주소의 기존 repo에 custom domain을 설정하지 말 것**.
 9. `trainoracle-domain-receipt.json`은 `sourceSha`, `accountMode: "off"`, `originPreserved: true`, 공개 OFF 설정 및 receipt 자신을 제외한 파일별 SHA-256을 기록합니다. `originPreserved`는 이 workflow가 구주소를 건드리지 않는다는 뜻이며, 개별 브라우저 자료의 존재·영구 보존 보증은 아닙니다.
 10. 파일 경로·알려진 credential 패턴·해시·receipt·최신 main을 **artifact 업로드 전**, 그리고 내려받은 **동일 실행 artifact 배포 직전** 다시 검증합니다. main이 이동하면 중단합니다. Pages API 호출 직전 검증과 실제 수락 사이의 극소 시간 경합은 원본 저장소를 잠그지 않고 제거할 수 없습니다.

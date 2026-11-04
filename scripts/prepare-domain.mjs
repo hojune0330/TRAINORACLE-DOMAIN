@@ -84,14 +84,9 @@ export function patchDocument(file, original) {
   if (!original.includes(OLD_EMAIL)) throw new Error('Expected contact missing: ' + file);
   let text = original.replaceAll(OLD_EMAIL, NEW_EMAIL);
   if (file === 'support.html') {
-    text = replaceOnce(text, '최근 확인: 2026년 8월 29일', '상태 안내 기준일: 2026년 10월 9일', 'support date');
-    text = replaceOnce(text, '<strong>공식 연동 신청은 완료됐고 제공자 검토를 기다리고 있습니다.</strong> 승인 여부와 시점은 Garmin·COROS가 결정합니다.', '<strong>Garmin은 2026년 10월 9일 안내 기준 신규 심사·승인이 잠정 중단되었으며 재개일은 미정입니다.</strong> COROS는 공식 API 신청 완료 후 제공자 검토 대기 상태입니다. 승인 여부와 시점은 각 제공자가 결정합니다.', 'provider notice');
-    text = replaceOnce(text, '제공자 검토 대기 중인 공식 자동 연동', '아직 공개되지 않은 공식 자동 연동', 'provider heading');
-    text = replaceOnce(text, '<h2>아직 공개되지 않은 공식 자동 연동</h2>', '<p class="legal-note">새 주소의 계정 로그인·온라인 보관·동기화는 아직 공개하지 않습니다. 기존 기기 기록은 기존 GitHub.io 주소에 남습니다. <a href="./migration.html">기존 주소와 기록 보존 안내</a>를 확인해 주세요.</p>\n\n    <h2>아직 공개되지 않은 공식 자동 연동</h2>', 'origin preservation link');
-    text = replaceOnce(text, '<td>공식 개발자 프로그램 신청 완료 · 제공자 검토 대기</td>', '<td>공식 개발자 프로그램 신청 완료 · 2026년 10월 9일 신규 심사·승인 잠정 중단 · 재개일 미정 · 자동 연동 미공개</td>', 'Garmin row');
-  }
-  if (file === 'legal/device-integrations.html') {
-    text = replaceOnce(text, '    <h2>받으려는 정보</h2>', '    <p class="legal-note">기기 연동 상태 안내 기준일: 2026년 10월 9일. Garmin 신규 심사·승인은 잠정 중단되었고 재개일은 미정입니다. COROS는 공식 API 신청 완료 후 제공자 검토 대기 상태를 유지합니다. 두 서비스의 자동 연동은 아직 공개되지 않았습니다.</p>\n\n    <h2>받으려는 정보</h2>', 'device status');
+    // Provider status belongs to the reviewed source. Never replace a later
+    // approval notice with this publisher's historical October pause notice.
+    text = replaceOnce(text, '<h2>공식 자동 연동 준비 상태</h2>', '<p class="legal-note">새 주소의 계정 로그인·온라인 보관·동기화는 아직 공개하지 않습니다. 기존 기기 기록은 기존 GitHub.io 주소에 남습니다. <a href="./migration.html">기존 주소와 기록 보존 안내</a>를 확인해 주세요.</p>\n\n    <h2>공식 자동 연동 준비 상태</h2>', 'origin preservation link');
   }
   return text;
 }
