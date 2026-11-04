@@ -178,7 +178,9 @@ test('legacy anon JWT may be public only when it is the exact configured anon ro
 
 test('workflow defaults account OFF and passes explicit mode unchanged through both artifact checks', async () => {
   const workflow = await readFile(join(project, '.github/workflows/publish.yml'), 'utf8');
-  assert.match(workflow, /account_mode:[\s\S]*?default: off/);
+  // GitHub parses unquoted OFF as a boolean and rejects dispatch input "off".
+  assert.match(workflow, /account_mode:[\s\S]*?default: ['"]off['"]/);
+  assert.match(workflow, /account_mode:[\s\S]*?options:[\s\S]*?- ['"]off['"]/);
   assert.match(workflow, /DOMAIN_ACCOUNT_MODE: \$\{\{ inputs\.account_mode \|\| 'off' \}\}/);
   assert.match(workflow, /DOMAIN_ACCOUNT_CONFIG_JSON: \$\{\{ vars\.TRAINORACLE_CANONICAL_ACCOUNT_CONFIG \}\}/);
   assert.match(workflow, /github\.repository == 'hojune0330\/TRAINORACLE-DOMAIN'/);
