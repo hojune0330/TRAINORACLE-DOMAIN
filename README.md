@@ -2,7 +2,9 @@
 
 ## 명시적 계정 공개 모드 — 2026-11-05 준비
 
-기본값은 계속 `account_mode=off`입니다. 아래의 별도 모드를 선택할 때만 이 문서의
+수동 게시의 기본값은 계속 `account_mode=off`입니다. `repository_dispatch`는 공개
+설정 변수가 있으면 canonical 모드를 유지하고, 없으면 OFF로 게시합니다. 설정이
+잘못되면 게시를 중단하며 OFF로 대체하지 않습니다. canonical 모드에서는 이 문서의
 OFF 환경·빈 연결·OFF receipt 규칙 대신 검증된 공개 설정을 사용합니다. 원본
 `TRAINORACLE`의 `gh-pages` 빌더와 계정 차단은 변경하지 않습니다. 이 저장소는
 Actions Pages 방식이므로 원본 `gh-pages:CNAME`이나 새 CNAME 파일을 요구하지 않습니다.
@@ -12,12 +14,15 @@ Actions Pages 방식이므로 원본 `gh-pages:CNAME`이나 새 CNAME 파일을 
    HTTPS `gatewayOrigin`, `environment`뿐입니다. `environment`의 허용 항목은
    `scripts/canonical-account-config.mjs`에 한정됩니다. Supabase URL과 검증된
    publishable/anon 키만 브라우저에 넣으며, service-role·암호화·서명 키는 거절합니다.
-2. 계정·일지·Garmin 기능 true와 대응 kill false, 정확한 회사 gateway 두 경로,
+2. 계정·일지·Garmin 기능 true와 대응 kill false, 정확한 회사 gateway 두 경로
+   또는 같은 Supabase 프로젝트의 Garmin function과 빈 journal gateway override,
    Garmin authorization origin, 11월 4일 법률 문서와 저장 공개 승인/0058 표기,
    운영 확인된 인증수단 하나 이상을 모두 명시합니다. 이메일·전화의 기존 별도
    운영 승인도 필요합니다. 공유·일반 동기화·AI 코칭은 이 모드가 열지 않습니다.
 3. `workflow_dispatch`에서 정확한 `source_sha`와 `account_mode=canonical`을 선택합니다.
-   `repository_dispatch`는 계정을 열 수 없습니다. 실행 저장소/브랜치가 정확히
+   이후 `repository_dispatch`도 이 공개 설정이 존재하면 canonical을 유지합니다.
+   명시적 수동 `account_mode=off`는 공개 설정이 있어도 그대로 적용합니다.
+   실행 저장소/브랜치가 정확히
    `hojune0330/TRAINORACLE-DOMAIN`의 `main`이어야 합니다. 기존 타입 검사·선택한 원본
    검사 범위·원본 hosted validator·빌드·동일 산출물 재검증·최신 main 검사는 유지합니다.
 4. receipt는 `accountMode: "canonical"`, 공개 설정 지문과 `backendVerification:

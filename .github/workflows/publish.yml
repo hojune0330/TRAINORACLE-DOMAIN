@@ -32,7 +32,7 @@ permissions:
 
 env:
   DOMAIN_BUILD_SCOPE: ${{ inputs.deployment_scope || 'source-verified' }}
-  DOMAIN_ACCOUNT_MODE: ${{ inputs.account_mode || 'off' }}
+  DOMAIN_ACCOUNT_MODE: ${{ inputs.account_mode || '' }}
   DOMAIN_ACCOUNT_CONFIG_JSON: ${{ vars.TRAINORACLE_CANONICAL_ACCOUNT_CONFIG }}
 
 concurrency:

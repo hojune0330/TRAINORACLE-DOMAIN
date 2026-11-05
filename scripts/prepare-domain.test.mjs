@@ -124,6 +124,48 @@ test('canonical account mode is explicit, repository-bound and strips unrelated 
   assert.equal(JSON.stringify(proof).includes(env.VITE_SUPABASE_ANON_KEY), false);
 });
 
+test('repository dispatch retains configured canonical accounts while explicit off and invalid configuration stay safe', () => {
+  const input = canonicalInput();
+  const settings = { DOMAIN_ACCOUNT_MODE: '', DOMAIN_ACCOUNT_CONFIG_JSON: JSON.stringify(input),
+    GITHUB_EVENT_NAME: 'repository_dispatch', GITHUB_REPOSITORY: 'hojune0330/TRAINORACLE-DOMAIN', GITHUB_REF: 'refs/heads/main' };
+  assert.deepEqual(selectDomainAccountInput(settings), input);
+  assert.equal(domainBuildEnvironment({}, selectDomainAccountInput(settings)).VITE_ACCOUNT_PUBLIC_ENABLED, 'true');
+  assert.equal(selectDomainAccountInput({ ...settings, DOMAIN_ACCOUNT_MODE: 'off' }), null);
+  assert.equal(selectDomainAccountInput({ ...settings, DOMAIN_ACCOUNT_MODE: 'off', GITHUB_EVENT_NAME: 'workflow_dispatch' }), null);
+  for (const missing of ['', ' ', undefined]) {
+    assert.equal(selectDomainAccountInput({ ...settings, DOMAIN_ACCOUNT_CONFIG_JSON: missing }), null);
+  }
+  assert.equal(selectDomainAccountInput({ ...settings, GITHUB_EVENT_NAME: 'workflow_dispatch' }), null);
+  for (const change of [{ DOMAIN_ACCOUNT_CONFIG_JSON: 'invalid JSON' }, { GITHUB_REPOSITORY: 'hojune0330/TRAINORACLE' }, { GITHUB_REF: 'refs/heads/other' }]) {
+    assert.throws(() => selectDomainAccountInput({ ...settings, ...change }), /CANONICAL_ACCOUNT_/);
+  }
+  assert.throws(() => domainBuildEnvironment({}, selectDomainAccountInput({ ...settings, DOMAIN_ACCOUNT_CONFIG_JSON: '{}' })), /CANONICAL_ACCOUNT_CONFIG_INVALID/);
+});
+
+test('canonical account can use its exact Supabase project without replacing journal storage', () => {
+  const input = canonicalInput();
+  input.gatewayOrigin = input.environment.VITE_SUPABASE_URL;
+  input.environment.VITE_ACCOUNT_JOURNAL_GATEWAY_URL = '';
+  input.environment.VITE_GARMIN_INTEGRATION_URL = `${input.gatewayOrigin}/functions/v1/garmin-integration`;
+  const env = domainBuildEnvironment({}, input);
+  assert.equal(env.VITE_ACCOUNT_JOURNAL_GATEWAY_URL, '');
+  assert.equal(env.VITE_SUPABASE_URL, input.environment.VITE_SUPABASE_URL);
+  assert.equal(env.VITE_GARMIN_INTEGRATION_URL, `${input.gatewayOrigin}/functions/v1/garmin-integration`);
+  assert.equal(env.VITE_FEATURE_SELF_HOSTED_COACHING, 'false');
+  for (const change of [
+    value => { value.gatewayOrigin = 'https://other.example.test'; },
+    value => { value.environment.VITE_GARMIN_INTEGRATION_URL = 'https://other.example.test/functions/v1/garmin-integration'; },
+    value => { value.environment.VITE_GARMIN_INTEGRATION_URL += '/'; },
+    value => { value.environment.VITE_GARMIN_INTEGRATION_URL += '?redirect=x'; },
+    value => { value.environment.VITE_GARMIN_INTEGRATION_URL = `${value.gatewayOrigin}/functions/v1/account-journal`; },
+    value => { value.environment.VITE_ACCOUNT_JOURNAL_GATEWAY_URL = `${value.gatewayOrigin}/api/account-journal`; },
+    value => { delete value.environment.VITE_ACCOUNT_JOURNAL_GATEWAY_URL; },
+  ]) {
+    const altered = structuredClone(input); change(altered);
+    assert.throws(() => domainBuildEnvironment({}, altered), /CANONICAL_ACCOUNT_ENDPOINT_INVALID/);
+  }
+});
+
 test('canonical configuration rejects missing approval, unsafe keys, split gateways and unrelated feature activation', () => {
   for (const change of [
     value => { value.canonicalOrigin = 'https://hojune0330.github.io'; },
@@ -176,12 +218,12 @@ test('legacy anon JWT may be public only when it is the exact configured anon ro
   assert.throws(() => domainBuildEnvironment({}, input), /PUBLIC_CONNECTION_INVALID/);
 }));
 
-test('workflow defaults account OFF and passes explicit mode unchanged through both artifact checks', async () => {
+test('workflow defaults manual account OFF and leaves automatic mode selection to the validated configuration', async () => {
   const workflow = await readFile(join(project, '.github/workflows/publish.yml'), 'utf8');
   // GitHub parses unquoted OFF as a boolean and rejects dispatch input "off".
   assert.match(workflow, /account_mode:[\s\S]*?default: ['"]off['"]/);
   assert.match(workflow, /account_mode:[\s\S]*?options:[\s\S]*?- ['"]off['"]/);
-  assert.match(workflow, /DOMAIN_ACCOUNT_MODE: \$\{\{ inputs\.account_mode \|\| 'off' \}\}/);
+  assert.match(workflow, /DOMAIN_ACCOUNT_MODE: \$\{\{ inputs\.account_mode \|\| '' \}\}/);
   assert.match(workflow, /DOMAIN_ACCOUNT_CONFIG_JSON: \$\{\{ vars\.TRAINORACLE_CANONICAL_ACCOUNT_CONFIG \}\}/);
   assert.match(workflow, /github\.repository == 'hojune0330\/TRAINORACLE-DOMAIN'/);
   assert.doesNotMatch(workflow, /client_payload\.account_mode|continue-on-error|\|\| true/);

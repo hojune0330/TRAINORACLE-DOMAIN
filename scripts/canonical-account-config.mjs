@@ -52,8 +52,13 @@ export function canonicalAccountEnvironment(off, input) {
     if (env[name] !== 'false') throw Error('CANONICAL_ACCOUNT_REQUIRED_SETTING');
   }
   if (!exactOrigin(env.VITE_SUPABASE_URL) || !publicKey(env.VITE_SUPABASE_ANON_KEY)) throw Error('CANONICAL_ACCOUNT_PUBLIC_CONNECTION_INVALID');
-  if (env.VITE_ACCOUNT_JOURNAL_GATEWAY_URL !== `${input.gatewayOrigin}/api/account-journal`
-    || env.VITE_GARMIN_INTEGRATION_URL !== `${input.gatewayOrigin}/api/garmin-integration`
+  const companyGateway = env.VITE_ACCOUNT_JOURNAL_GATEWAY_URL === `${input.gatewayOrigin}/api/account-journal`
+    && env.VITE_GARMIN_INTEGRATION_URL === `${input.gatewayOrigin}/api/garmin-integration`;
+  // An empty journal override retains its existing authenticated Supabase transport and stored records.
+  const projectFunctions = input.gatewayOrigin === env.VITE_SUPABASE_URL
+    && env.VITE_ACCOUNT_JOURNAL_GATEWAY_URL === ''
+    && env.VITE_GARMIN_INTEGRATION_URL === `${env.VITE_SUPABASE_URL}/functions/v1/garmin-integration`;
+  if ((!companyGateway && !projectFunctions)
     || env.VITE_GARMIN_AUTHORIZATION_ORIGIN !== 'https://connect.garmin.com') throw Error('CANONICAL_ACCOUNT_ENDPOINT_INVALID');
   if (env.VITE_PRIVACY_POLICY_URL !== `${CANONICAL_ORIGIN}/legal/privacy.html`
     || env.VITE_TERMS_OF_SERVICE_URL !== `${CANONICAL_ORIGIN}/legal/terms.html`
@@ -74,7 +79,9 @@ export function canonicalAccountEvidence(environment) {
 }
 
 export function selectDomainAccountInput(env) {
-  const mode = env.DOMAIN_ACCOUNT_MODE || 'off';
+  const retainCanonical = env.GITHUB_EVENT_NAME === 'repository_dispatch'
+    && typeof env.DOMAIN_ACCOUNT_CONFIG_JSON === 'string' && env.DOMAIN_ACCOUNT_CONFIG_JSON.trim() !== '';
+  const mode = env.DOMAIN_ACCOUNT_MODE || (retainCanonical ? 'canonical' : 'off');
   if (mode === 'off') return null;
   if (mode !== 'canonical' || env.GITHUB_REPOSITORY !== 'hojune0330/TRAINORACLE-DOMAIN'
     || env.GITHUB_REF !== 'refs/heads/main') throw Error('CANONICAL_ACCOUNT_PUBLISHER_REQUIRED');
