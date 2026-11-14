@@ -8,8 +8,8 @@ const SETTINGS = new Set([
   'VITE_ACCOUNT_JOURNAL_GATEWAY_URL', 'VITE_GARMIN_INTEGRATION_URL', 'VITE_GARMIN_AUTHORIZATION_ORIGIN',
   'VITE_PRIVACY_POLICY_URL', 'VITE_PRIVACY_POLICY_VERSION', 'VITE_TERMS_OF_SERVICE_URL', 'VITE_TERMS_OF_SERVICE_VERSION',
   'VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED', 'VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION',
-  ...['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE'].flatMap(provider => [`VITE_${provider}_AUTH_ENABLED`, `VITE_KILL_${provider}_AUTH`]),
-  'VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED', 'VITE_PHONE_AUTH_OPERATIONS_APPROVED',
+  ...['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE', 'PASSWORD'].flatMap(provider => [`VITE_${provider}_AUTH_ENABLED`, `VITE_KILL_${provider}_AUTH`]),
+  'VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED', 'VITE_PHONE_AUTH_OPERATIONS_APPROVED', 'VITE_PASSWORD_AUTH_OPERATIONS_APPROVED',
 ]);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && Object.getPrototypeOf(value) === Object.prototype;
@@ -64,9 +64,9 @@ export function canonicalAccountEnvironment(off, input) {
     || env.VITE_TERMS_OF_SERVICE_URL !== `${CANONICAL_ORIGIN}/legal/terms.html`
     || env.VITE_PRIVACY_POLICY_VERSION !== '2026-11-04' || env.VITE_TERMS_OF_SERVICE_VERSION !== '2026-11-04'
     || env.VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION !== '0058_storage_withdrawal_erasure') throw Error('CANONICAL_ACCOUNT_LEGAL_CONFIGURATION_INVALID');
-  const providers = ['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE'].filter(provider => env[`VITE_${provider}_AUTH_ENABLED`] === 'true');
+  const providers = ['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE', 'PASSWORD'].filter(provider => env[`VITE_${provider}_AUTH_ENABLED`] === 'true');
   if (!providers.length || providers.some(provider => env[`VITE_KILL_${provider}_AUTH`] !== 'false')) throw Error('CANONICAL_ACCOUNT_AUTH_REQUIRED');
-  for (const [provider, approval] of [['EMAIL', 'VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED'], ['PHONE', 'VITE_PHONE_AUTH_OPERATIONS_APPROVED']]) {
+  for (const [provider, approval] of [['EMAIL', 'VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED'], ['PHONE', 'VITE_PHONE_AUTH_OPERATIONS_APPROVED'], ['PASSWORD', 'VITE_PASSWORD_AUTH_OPERATIONS_APPROVED']]) {
     if (providers.includes(provider) && env[approval] !== 'true') throw Error('CANONICAL_ACCOUNT_AUTH_OPERATIONS_REQUIRED');
   }
   return { ...off, VITE_FEATURE_SELF_HOSTED_COACHING: 'false', VITE_KILL_SELF_HOSTED_COACHING: 'true', ...env };

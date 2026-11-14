@@ -23,7 +23,8 @@ export function accountOffEnvironment(base = {}) {
   }
   // Reviewed source has no separate storage-backend toggle: account gates + empty connection keep it inaccessible.
   Object.assign(env, { CI: 'true', TZ: 'UTC', VITE_SERVER_OPERATIONS_ENABLED: 'false', VITE_LOUNGE_PUBLIC_ENABLED: 'false', VITE_LOUNGE_REALTIME_URL: '', VITE_LOUNGE_PAGE_URL: '', VITE_FRIEND_ARENA_URL: '', VITE_ACCOUNT_PUBLIC_ENABLED: 'false', VITE_KILL_ACCOUNT: 'true', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_ACCOUNT_STORAGE_PRIVACY_RELEASE_APPROVED: 'false', VITE_ACCOUNT_STORAGE_PRIVACY_MIGRATION: '', VITE_EMAIL_AUTH_PKCE_OPERATIONS_APPROVED: 'false', VITE_PHONE_AUTH_OPERATIONS_APPROVED: 'false', VITE_PRIVACY_POLICY_URL: ORIGIN + 'legal/privacy.html', VITE_PRIVACY_POLICY_VERSION: '2026-11-04', VITE_TERMS_OF_SERVICE_URL: ORIGIN + 'legal/terms.html', VITE_TERMS_OF_SERVICE_VERSION: '2026-11-04' });
-  for (const provider of ['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE']) {
+  env.VITE_PASSWORD_AUTH_OPERATIONS_APPROVED = 'false';
+  for (const provider of ['KAKAO', 'GOOGLE', 'EMAIL', 'PHONE', 'PASSWORD']) {
     env['VITE_' + provider + '_AUTH_ENABLED'] = 'false';
     env['VITE_KILL_' + provider + '_AUTH'] = 'true';
   }

@@ -124,6 +124,26 @@ test('canonical account mode is explicit, repository-bound and strips unrelated 
   assert.equal(JSON.stringify(proof).includes(env.VITE_SUPABASE_ANON_KEY), false);
 });
 
+test('password release requires explicit operations evidence and cannot leak into OFF builds', () => {
+  const requested = { VITE_PASSWORD_AUTH_ENABLED: 'true', VITE_KILL_PASSWORD_AUTH: 'false', VITE_PASSWORD_AUTH_OPERATIONS_APPROVED: 'true' };
+  const off = accountOffEnvironment(requested);
+  assert.equal(off.VITE_PASSWORD_AUTH_ENABLED, 'false');
+  assert.equal(off.VITE_KILL_PASSWORD_AUTH, 'true');
+  assert.equal(off.VITE_PASSWORD_AUTH_OPERATIONS_APPROVED, 'false');
+  assertAccountOff(off);
+  const input = canonicalInput();
+  Object.assign(input.environment, requested);
+  assert.equal(domainBuildEnvironment({}, input).VITE_PASSWORD_AUTH_ENABLED, 'true');
+  for (const approval of [undefined, 'false']) {
+    const withoutEvidence = structuredClone(input);
+    if (approval === undefined) delete withoutEvidence.environment.VITE_PASSWORD_AUTH_OPERATIONS_APPROVED;
+    else withoutEvidence.environment.VITE_PASSWORD_AUTH_OPERATIONS_APPROVED = approval;
+    assert.throws(() => domainBuildEnvironment({}, withoutEvidence), /CANONICAL_ACCOUNT_AUTH_OPERATIONS_REQUIRED/);
+  }
+  input.environment.VITE_KILL_PASSWORD_AUTH = 'true';
+  assert.throws(() => domainBuildEnvironment({}, input), /CANONICAL_ACCOUNT_AUTH_REQUIRED/);
+});
+
 test('repository dispatch retains configured canonical accounts while explicit off and invalid configuration stay safe', () => {
   const input = canonicalInput();
   const settings = { DOMAIN_ACCOUNT_MODE: '', DOMAIN_ACCOUNT_CONFIG_JSON: JSON.stringify(input),
