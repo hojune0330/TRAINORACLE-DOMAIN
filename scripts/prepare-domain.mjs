@@ -11,7 +11,7 @@ export const REVIEWED_SHA = '0eb26e4319c7e4fffb118976211c228cfa25e510';
 export const ORIGIN = 'https://trainoracle.io/';
 export const OLD_ORIGIN = 'https://hojune0330.github.io/TRAINORACLE/';
 export const OLD_EMAIL = 'hojune0330@gmail.com';
-export const NEW_EMAIL = 'hojune.jang@trainoracle.io';
+export const NEW_EMAIL = 'io.athlete.time@gmail.com';
 const SHA = /^[a-f0-9]{40}$/;
 const FEATURE_OFF = ['ACCOUNT_JOURNAL', 'SYNC', 'SHARING', 'PLAN_PROPOSALS', 'PLAN_BACKUP', 'PUBLIC_PROFILE', 'PRODUCT_ANALYTICS', 'FEEDBACK_BOARD', 'FILE_ANALYSIS_TCX', 'FILE_ANALYSIS_CSV', 'FILE_ANALYSIS_JSON', 'FILE_ANALYSIS_GPX', 'MINIGAME_PROGRESS'];
 
@@ -96,7 +96,8 @@ function replaceOnce(text, before, after, label) {
 }
 
 export function patchDocument(file, original, accountMode = 'off') {
-  if (!original.includes(OLD_EMAIL)) throw new Error('Expected contact missing: ' + file);
+  // The reviewed source may still carry the old address or already the unified one.
+  if (!original.includes(OLD_EMAIL) && !original.includes(NEW_EMAIL)) throw new Error('Expected contact missing: ' + file);
   let text = original.replaceAll(OLD_EMAIL, NEW_EMAIL);
   if (file === 'support.html') {
     // Provider status belongs to the reviewed source. Never replace a later
@@ -109,10 +110,10 @@ export function patchDocument(file, original, accountMode = 'off') {
 
 export function migrationPage(accountMode = 'off') {
   const notice = accountMode === 'canonical' ? '계정 로그인과 동의한 기록의 계정 보관, Garmin 연결을 제공합니다. 실제 연결 및 기록 수신 상태는 앱에서 확인하세요. 공유와 AI 코칭은 이 공개 범위에 포함하지 않습니다.' : '계정 로그인, 계정 보관, 동기화, 공유와 연결 백엔드는 아직 공개하지 않습니다.';
-  return '<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>주소 이전과 기존 기록 안내 | TRAINORACLE</title><link rel="stylesheet" href="./legal/legal.css"><link rel="canonical" href="https://trainoracle.io/migration.html"></head><body><main class="legal-document"><h1>새 주소와 기존 기록 안내</h1><p>새 주소 <a href="https://trainoracle.io/">trainoracle.io</a>에서는 같은 원본의 전체 앱을 제공합니다. ' + notice + '</p><h2>기존 기록은 구주소에서 확인하세요</h2><p><a href="https://hojune0330.github.io/TRAINORACLE/">기존 GitHub.io 앱 열기</a></p><p>기존 기록은 해당 브라우저의 구주소 저장공간에 남아 있습니다. 구주소의 앱과 자료 접근 경로를 유지하며, 이 배포는 구주소를 리디렉션하거나 삭제하지 않습니다. 브라우저 저장공간을 지우지 말고 기록을 작성한 같은 브라우저로 구주소를 열어 주세요.</p><p>서로 다른 주소의 브라우저 저장공간은 자동으로 공유되지 않습니다. 새 주소에서 구주소의 기록을 자동으로 읽거나 모두 옮길 수 있다고 보장하지 않습니다. 백업·가져오기를 사용하더라도 지원되는 자료 범위를 확인하고 원본을 보관하세요. 모든 항목의 완전한 복원을 약속하지 않습니다.</p><p><a href="./">새 주소 앱 열기</a> · <a href="./support.html">도움말</a> · <a href="mailto:hojune.jang@trainoracle.io">문의</a></p></main></body></html>\n';
+  return '<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>주소 이전과 기존 기록 안내 | TRAINORACLE</title><link rel="stylesheet" href="./legal/legal.css"><link rel="canonical" href="https://trainoracle.io/migration.html"></head><body><main class="legal-document"><h1>새 주소와 기존 기록 안내</h1><p>새 주소 <a href="https://trainoracle.io/">trainoracle.io</a>에서는 같은 원본의 전체 앱을 제공합니다. ' + notice + '</p><h2>기존 기록은 구주소에서 확인하세요</h2><p><a href="https://hojune0330.github.io/TRAINORACLE/">기존 GitHub.io 앱 열기</a></p><p>기존 기록은 해당 브라우저의 구주소 저장공간에 남아 있습니다. 구주소의 앱과 자료 접근 경로를 유지하며, 이 배포는 구주소를 리디렉션하거나 삭제하지 않습니다. 브라우저 저장공간을 지우지 말고 기록을 작성한 같은 브라우저로 구주소를 열어 주세요.</p><p>서로 다른 주소의 브라우저 저장공간은 자동으로 공유되지 않습니다. 새 주소에서 구주소의 기록을 자동으로 읽거나 모두 옮길 수 있다고 보장하지 않습니다. 백업·가져오기를 사용하더라도 지원되는 자료 범위를 확인하고 원본을 보관하세요. 모든 항목의 완전한 복원을 약속하지 않습니다.</p><p><a href="./">새 주소 앱 열기</a> · <a href="./support.html">도움말</a> · <a href="mailto:' + NEW_EMAIL + '">문의</a></p></main></body></html>\n';
 }
 
-const LEGAL_FILES = ['legal/privacy.html', 'legal/terms.html', 'legal/device-integrations.html', 'support.html'];
+const LEGAL_FILES = ['legal/privacy.html', 'legal/terms.html', 'legal/device-integrations.html', 'legal/open-source.html', 'support.html'];
 const RECEIPT = 'trainoracle-domain-receipt.json';
 const DENIED_CONTENT = [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, /\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{20,}/, /\b(?:ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{20,}/, /\bAIza[A-Za-z0-9_-]{30,}/, /\beyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}/];
 
