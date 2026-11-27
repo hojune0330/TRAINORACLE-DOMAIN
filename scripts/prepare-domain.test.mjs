@@ -14,6 +14,7 @@ const fixture = {
   'legal/privacy.html': '<p>기타 개인정보처리방침 본문 그대로</p>' + contact,
   'legal/terms.html': '<p>기타 이용약관 본문 그대로</p>' + contact,
   'legal/device-integrations.html': contact + '\n    <h2>받으려는 정보</h2>\n<p>기타 수집·삭제 내용 그대로</p>',
+  'legal/open-source.html': '<p>오픈소스 고지 본문 그대로</p>' + contact,
   'support.html': '<p>최근 확인: 2026년 11월 4일</p><p><strong>Garmin 개발자 프로그램 승인은 확인했으며, 실제 앱 연결 설정은 준비 중입니다.</strong> 프로그램 승인과 사용자 운동기록 수신은 별도 단계입니다. 현재 공개 앱에서는 두 계정의 자동 연결을 제공하지 않습니다.</p><h2>공식 자동 연동 준비 상태</h2><table><tr><td>Garmin</td><td>개발자 프로그램 승인 확인 · 앱 자격증명·실제 수신 설정 필요</td></tr><tr><td>COROS</td><td>공식 API 신청 완료 · 제공자 검토 대기</td></tr></table>' + contact,
 };
 
@@ -269,6 +270,13 @@ test('explicit domain-hosting scope preserves mandatory build gates without clai
 
 test('privacy/terms remain byte-identical except contact', () => {
   for (const name of ['legal/privacy.html', 'legal/terms.html']) assert.equal(patchDocument(name, fixture[name]), fixture[name].replaceAll(OLD_EMAIL, NEW_EMAIL));
+});
+
+test('open-source notice carries the unified contact and an already-unified source passes', () => {
+  assert.equal(patchDocument('legal/open-source.html', fixture['legal/open-source.html']), fixture['legal/open-source.html'].replaceAll(OLD_EMAIL, NEW_EMAIL));
+  const unified = fixture['legal/privacy.html'].replaceAll(OLD_EMAIL, NEW_EMAIL);
+  assert.equal(patchDocument('legal/privacy.html', unified), unified);
+  assert.throws(() => patchDocument('legal/privacy.html', '<p>no contact</p>'), /Expected contact missing/);
 });
 
 test('reviewed provider status and device policy remain unchanged; origin anchor drift is rejected', () => {
